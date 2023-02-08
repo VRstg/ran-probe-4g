@@ -1,0 +1,7 @@
+apiVersion: v2
+appVersion: 10.0.0
+description: A Helm chart for Dundas BI in Kubernetes
+icon: https://www.dundas.com/Content/Images/home/home2020/icons/nav/dundas-logo-blk.png
+name: qinsight-ui-chart
+type: application
+version: 3.37.25

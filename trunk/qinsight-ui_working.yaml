@@ -1,0 +1,264 @@
+---
+# Source: dundas-bi/templates/dundas-bi-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: qinsight-ui
+type: Opaque
+data: 
+    DBI_CONNECTION_STRING: SG9zdD1xaW5zaWdodC1kYi1xaW5zaWdodC1kYi1jaGFydDtQb3J0PTU0MzI7VXNlcm5hbWU9cG9zdGdyZXM7UGFzc3dvcmQ9UmFkbWluMTtEYXRhYmFzZT1xaW5zaWdodC1kYgo=
+---
+# Source: dundas-bi/templates/dundas-bi-website-service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: qinsight-ui-srv
+  annotations:
+  labels:
+    helm.sh/chart: dundas-bi-3.37.25
+    app.kubernetes.io/name: dundas-bi
+    app.kubernetes.io/instance: qinsight-ui
+    app.kubernetes.io/version: "10.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: dundas-bi-website
+spec:
+  type: LoadBalancer
+  ports:
+  
+    - name: webnginxhttp
+      protocol: TCP
+      port: 9088
+      targetPort: webnginxhttp
+  
+  selector:
+    app.kubernetes.io/name: dundas-bi
+    app.kubernetes.io/instance: qinsight-ui
+    app: dundas-bi-website
+  sessionAffinity: ClientIP
+---
+# Source: dundas-bi/templates/dundas-bi-website-deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: qinsight-ui
+  labels:
+    helm.sh/chart: dundas-bi-3.37.25
+    app.kubernetes.io/name: dundas-bi
+    app.kubernetes.io/instance: qinsight-ui
+    app.kubernetes.io/version: "10.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app: dundas-bi-website
+spec:
+    
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1    
+      maxUnavailable: 0
+  replicas: 1
+  
+  selector:
+    matchLabels:
+      app: dundas-bi-website
+      app.kubernetes.io/name: dundas-bi
+      app.kubernetes.io/instance: qinsight-ui
+  template:
+    metadata:
+      labels:
+        app: dundas-bi-website
+        app.kubernetes.io/name: dundas-bi
+        app.kubernetes.io/instance: qinsight-ui
+    spec:
+      initContainers:
+        - name: handledatabase
+          
+          image: '571789434150.dkr.ecr.us-east-2.amazonaws.com/qinsight-ui-init:1.8.0' 
+          
+          command: ['sh', '-c', "/tmp/Entrypoint.sh || echo 'done'" ]
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1001
+          resources:
+            null
+          volumeMounts:    
+            - name: dundasshare
+              mountPath: /dundas-bi-share/
+          env:
+            - name: DUNDAS_BI_CREATE_SHARED_DBI_CONFIG
+              value: "true"
+           
+            - name: DUNDAS_BI_SETUP_ORCHESTRATOR_URL
+            
+              value: ""
+            
+            
+            
+            - name: DUNDAS_BI_APP_STORAGE
+            
+              value: Postgres
+            
+            - name: DUNDAS_BI_APP_DB_CONN_STRING
+            
+              valueFrom:
+                
+                secretKeyRef:
+                  name: qinsight-ui
+                  key: DBI_CONNECTION_STRING
+                
+           
+
+           # Warehouse connection string section 
+           
+              
+           
+           # End Warehouse connection string section 
+            - name: "A160BB4E4AE416297A0AAC7FACFCB751"
+              value: "HandleDatabase"   
+            
+           
+            - name: DUNDAS_BI_INTERNAL_APPLICATION_URL
+              value: "http://qinsight-ui.production:9000/"        
+           
+           
+           
+           
+            - name: DUNDAS_BI_EXTERNAL_APPLICATION_URL
+              value: https://kuberiq.com/qinsight/
+            - name: DUNDAS_BI_EXTERNAL_APPLICATION_URL
+              value: https:///qinsight/
+            
+           
+
+            - name: DUNDAS_BI_DOCKER_EMAIL
+              value: "sergey.bakaev@radcom.com"
+            - name: DUNDAS_BI_DOCKER_KEY
+              value: "4455C-89E67-N3524-C6285"
+            
+      containers:
+        - name: dundas-bi
+          
+          image: '571789434150.dkr.ecr.us-east-2.amazonaws.com/qinsight-ui-website:10.0.0.1006' 
+          
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+          
+            failureThreshold: 5
+            httpGet:
+              path: /robots.txt
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 20
+          readinessProbe:
+          
+            failureThreshold: 5
+            httpGet:
+              path: /robots.txt
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+          env:  
+            - name: DUNDAS_BI_FORCE_ENGINE_LOGGING_VERBOSE 
+            
+              value: "false"
+            
+            
+            
+            
+            - name: DUNDAS_BI_X_PROXY_BASE_PATH
+              value: "/qinsight/"        
+            
+          resources:
+            null
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 1001
+          volumeMounts:  
+            - name: dundasshare
+              mountPath: /dundas-bi-share/
+          
+          # Virtual Directory
+          
+        - name: dundas-bi-reverseproxy
+          
+          image: '571789434150.dkr.ecr.us-west-2.amazonaws.com/qinsight-ui-reverseproxy:10.0.0.1006' 
+              
+          resources:
+            null
+          env:
+            - name: DUNDAS_BI_X_PROXY_BASE_PATH
+              value: /qinsight
+            - name: DUNDAS_BI_NGINX_REWRITE
+              value: (?i)/qinsight/(.*)
+          ports:
+          - name: webnginxhttp
+            containerPort: 8000
+            protocol: TCP    
+          volumeMounts:
+          
+          # End Virtual Directory
+          
+      volumes:
+        - name: dundasshare
+          emptyDir: {}
+      restartPolicy: Always
+      securityContext:
+        {}
+---
+# Source: dundas-bi/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qinsight-ui-ing
+  labels:
+    helm.sh/chart: dundas-bi-3.37.25
+    app.kubernetes.io/name: dundas-bi
+    app.kubernetes.io/instance: qinsight-ui
+    app.kubernetes.io/version: "10.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/affinity: cookie
+    nginx.ingress.kubernetes.io/proxy-body-size: 500m
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "86400"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      gzip on;
+      gzip_types = text/plain image/svg+xml application/xml text/css application/javascript application/json "application/json;charset=utf-8" application/font-woff;
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-name: dbiroute
+    nginx.ingress.kubernetes.io/session-cookie-path: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  tls:
+    - hosts:
+        - "kuberiq.com"
+      secretName: tls-secret
+  rules:
+    - host: "kuberiq.com"
+      http:
+        paths:
+          - path: /qinsight/
+            pathType: "ImplementationSpecific" 
+            backend:
+              service:
+                name: qinsight-ui-srv
+                port: 
+                  number: 9088
+    - host: 
+      http:
+        paths:
+          - path: /qinsight/
+            pathType: "ImplementationSpecific" 
+            backend:
+              service:
+                name: qinsight-ui-srv
+                port: 
+                  number: 9088
