@@ -1,0 +1,114 @@
+{{- if .Values.ingress.enabled -}}
+{{- $websitePrefixName := "qinsight-ui" -}}
+{{- $releaseName:= .Release.Name -}}
+{{- $svcPort := .Values.dundas.bi.website.port -}}
+{{- $authBridgePort := .Values.dundas.bi.authbridge.port -}}
+{{- $authBridgePrefixName := "dundas-bi-authbridge" -}}
+{{- $authBridgeEnabled := .Values.dundas.bi.authbridge.enabled -}}
+{{- $gatewayhubPort := 8080 -}}
+{{- $gatewayhubPrefixName := "dundas-bi-gatewayhub" -}}
+{{- $gatewayhubEnabled := false -}}
+{{- if .Values.dundas.bi.gatewayhub }}
+{{- $gatewayhubEnabled = .Values.dundas.bi.gatewayhub.enabled -}}
+{{- $gatewayhubPort = .Values.dundas.bi.gatewayhub.port -}}
+{{- end }}
+
+{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1/Ingress" -}}
+apiVersion: networking.k8s.io/v1
+{{- else if .Capabilities.APIVersions.Has "networking.k8s.io/v1beta1/Ingress" -}}
+apiVersion: networking.k8s.io/v1beta1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  name: {{ $websitePrefixName }}-ing
+  labels:
+    {{- include "dundas-bi.labels" . | nindent 4 }}
+  annotations:  
+  {{- if .Values.dundas.bi.website.ingress }}
+  {{- if .Values.dundas.bi.website.ingress.annotations }}
+  {{- with .Values.dundas.bi.website.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.dundas.bi.gatewayhub }}
+  {{- if .Values.dundas.bi.gatewayhub.enabled }}
+    nginx.org/websocket-services: "dundas-bi-gatewayhub-{{ .Release.Name }}"
+  {{- end }}
+  {{- end }}
+  {{- if .Values.dundas.bi.cloud }}
+  {{- if .Values.dundas.bi.cloud.google }}
+  {{- if .Values.dundas.bi.cloud.google.enabled }}
+    kubernetes.io/ingress.global-static-ip-name: {{ .Release.Name }}
+    ingress.gcp.kubernetes.io/pre-shared-cert: {{ .Values.dundas.bi.cloud.google.certificateName }} 
+    networking.gke.io/v1beta1.FrontendConfig: {{ .Release.Name }}-dundas-bi-frontendconfig
+  {{- end }}
+  {{- end }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- range .Values.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ . }}{{ $.Values.dundas.bi.virtualDirectoryPath | trimPrefix "/" }}{{ if $.Values.ingress.appendToPath }}{{ $.Values.ingress.appendToPath }}{{ end }}
+            pathType: {{ if $.Values.ingress.pathType }}{{ $.Values.ingress.pathType | quote }}{{ else }}"ImplementationSpecific"{{ end }} 
+            backend:
+              {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
+              service:
+                name: {{ $websitePrefixName }}-srv
+                port: 
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $websitePrefixName }}-srv
+              servicePort: {{ $svcPort }}
+              {{- end }}
+          {{- if $authBridgeEnabled  }}    
+          - path: {{ . }}{{ $.Values.dundas.bi.virtualDirectoryPath | trimPrefix "/" }}AuthBridge/{{ if $.Values.ingress.appendToPath }}{{ $.Values.ingress.appendToPath }}{{ end }}
+            pathType: {{ if $.Values.ingress.pathType }}{{ $.Values.ingress.pathType | quote }}{{ else }}"ImplementationSpecific"{{ end }} 
+            backend:
+              {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
+              service:
+                name: {{ $websitePrefixName }}-srv
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $websitePrefixName }}-srv
+              servicePort: {{ $svcPort }}
+              {{- end }}
+          {{- end }}
+          {{- if $gatewayhubEnabled  }} 
+          - path: {{ . }}{{ $.Values.dundas.bi.virtualDirectoryPath | trimPrefix "/" }}Gateway/{{ if $.Values.ingress.appendToPath }}{{ $.Values.ingress.appendToPath }}{{ end }}
+            pathType: {{ if $.Values.ingress.pathType }}{{ $.Values.ingress.pathType | quote }}{{ else }}"ImplementationSpecific"{{ end }} 
+            backend:
+              {{- if $.Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
+              service:
+                name: {{ $websitePrefixName }}-srv
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $websitePrefixName }}-srv
+              servicePort: {{ $svcPort }}
+              {{- end }}
+          {{- end }}
+              
+    {{- end }}
+  {{- end }}
+
+{{- end }}

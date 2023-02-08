@@ -1,0 +1,16 @@
+{{- if .Values.dundas.bi.appDb.express -}}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: qinsight-ui-postgres-pv-claim
+  labels:
+    {{- include "dundas-bi.labels" . | nindent 4 }}
+    app: dundas-bi-database
+spec:
+  capacity:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+{{- end }}

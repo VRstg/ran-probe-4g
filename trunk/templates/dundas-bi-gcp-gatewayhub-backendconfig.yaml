@@ -1,0 +1,21 @@
+{{- if .Values.dundas.bi.cloud -}}
+{{- if .Values.dundas.bi.cloud.google -}}
+{{- if .Values.dundas.bi.cloud.google.enabled -}}
+{{- if .Values.dundas.bi.cloud.google.gatewayhubBackendconfig.enabled -}}
+{{- if .Values.dundas.bi.gatewayhub.enabled -}}
+{{- if .Values.dundas.bi.gatewayhub.service.enabled -}}
+
+apiVersion: cloud.google.com/v1beta1
+kind: BackendConfig
+metadata:
+  name: qinsight-ui-gatewayhub-backendconfig
+spec:
+  {{- with .Values.dundas.bi.cloud.google.gatewayhubBackendconfig.spec }}
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

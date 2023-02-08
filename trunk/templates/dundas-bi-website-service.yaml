@@ -1,0 +1,40 @@
+{{- if .Values.dundas.bi.website.service.enabled -}}
+kind: Service
+apiVersion: v1
+metadata:
+  name: qinsight-ui-srv
+  annotations:
+  {{- with .Values.dundas.bi.website.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.dundas.bi.cloud }}
+  {{- if .Values.dundas.bi.cloud.google }}
+  {{- if .Values.dundas.bi.cloud.google.enabled }} 
+    cloud.google.com/neg: '{ "ingress" : true }' 
+    cloud.google.com/backend-config: '{ "default": "{{ .Release.Name }}-dundas-bi-backendconfig" }'
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  labels:
+    {{- include "dundas-bi.labels" . | nindent 4 }}
+    app: dundas-bi-website
+spec:
+  type: {{ .Values.dundas.bi.website.service.type }}
+  ports:
+  {{ if .Values.dundas.bi.virtualDirectoryPath }}
+    - name: webnginxhttp
+      protocol: TCP
+      port: {{ .Values.dundas.bi.website.port }}
+      targetPort: webnginxhttp
+  {{ else }}
+    - name: http
+      protocol: TCP
+      port: {{ .Values.dundas.bi.website.port }}
+      targetPort: http
+  {{ end }}
+  selector:
+    {{- include "dundas-bi.selectorLabels" . | nindent 4 }}
+    app: dundas-bi-website
+  sessionAffinity: {{ .Values.dundas.bi.website.service.sessionAffinity }} 
+
+{{- end }}

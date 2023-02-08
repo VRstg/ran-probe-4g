@@ -1,0 +1,36 @@
+{{- if .Values.dundas.bi.gatewayhub -}}
+{{- if .Values.dundas.bi.gatewayhub.enabled -}}
+{{- if .Values.dundas.bi.gatewayhub.service.enabled -}}
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: qinsight-ui-gatewayhub
+  annotations:
+{{- if .Values.dundas.bi.cloud }}
+{{- if .Values.dundas.bi.cloud.google }}
+{{- if .Values.dundas.bi.cloud.google.enabled }}
+    cloud.google.com/neg: '{ "ingress" : true }' 
+    cloud.google.com/backend-config: '{ "default": "{{ .Release.Name }}-dundas-bi-gatewayhub-backendconfig" }'
+{{- end }}
+{{- end }}
+{{- end }}
+  {{- with .Values.dundas.bi.gatewayhub.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "dundas-bi.labels" . | nindent 4 }}
+    app: dundas-bi-gatewayhub
+spec:
+  type: {{ .Values.dundas.bi.gatewayhub.service.type }}
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.dundas.bi.gatewayhub.port }}
+      targetPort: http
+  selector:
+    {{- include "dundas-bi.selectorLabels" . | nindent 4 }}
+    app: dundas-bi-gatewayhub
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,71 @@
+{{- if or .Values.dundas.bi.website.autoscaling.enabled (gt .Values.dundas.bi.website.replicaCount 1.0)  }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: qinsight-ui-setup-orchestrator
+  labels:
+    {{- include "dundas-bi.labels" . | nindent 4 }}
+    app: dundas-bi-setup-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dundas-bi-setup-orchestrator
+      {{- include "dundas-bi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        app: dundas-bi-setup-orchestrator
+        {{- include "dundas-bi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}    
+      containers:
+        - name: {{ .Chart.Name }}
+          {{ if .Values.dundas.bi.setup.orchestrator.image.override.enabled }}
+          image: '{{ .Values.dundas.bi.setup.orchestrator.image.override.name }}'
+          {{ else }}
+          image: '{{ .Values.dundas.bi.defaultImageRepository }}/dundas-bi-setup-orchestrator:{{ .Values.dundas.bi.version }}' 
+          {{ end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          {{- if .Values.dundas.bi.setup.orchestrator.livenessProbe }}
+          livenessProbe:
+          {{ toYaml .Values.dundas.bi.setup.orchestrator.livenessProbe | nindent 12  }}
+          {{- end }}
+          {{- if .Values.dundas.bi.setup.orchestrator.readinessProbe }}
+          readinessProbe:
+          {{ toYaml .Values.dundas.bi.setup.orchestrator.readinessProbe | nindent 12  }}
+          {{- end }}     
+          resources:
+            {{- toYaml .Values.dundas.bi.setup.orchestrator.resources | nindent 12 }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+
+      restartPolicy: Always
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+{{- end }}
+

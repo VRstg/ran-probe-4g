@@ -1,0 +1,22 @@
+{{- if .Values.dundas.bi.appDb.express -}}
+kind: Service
+apiVersion: v1
+metadata:
+  name: qinsight-ui-database
+  labels:
+    {{- include "dundas-bi.labels" . | nindent 4 }}
+    app: dundas-bi-database
+spec:
+  ports:
+    - name: postgresport
+      protocol: TCP
+      port: 5432
+      targetPort: postgresport
+
+  selector:
+    {{- include "dundas-bi.selectorLabels" . | nindent 4 }}
+    app: dundas-bi-database
+  type: ClusterIP
+  
+
+{{- end }}
